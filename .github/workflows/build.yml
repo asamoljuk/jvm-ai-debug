@@ -1,0 +1,146 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  build:
+    name: Java ${{ matrix.java }} — Maven verify
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        java: [ '21' ]
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ matrix.java }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ matrix.java }}
+          distribution: 'temurin'
+          cache: maven
+
+      # Build the tool JAR first (skip tests so we have the analyzer even if tests fail)
+      - name: Build tool JAR
+        run: mvn --batch-mode --no-transfer-progress package -DskipTests
+        continue-on-error: true  # If compilation itself fails, subsequent steps handle it gracefully
+
+      # Run the full build; capture stdout+stderr to a file for analysis on failure
+      - name: Run full build and tests
+        id: verify
+        run: |
+          mvn --batch-mode --no-transfer-progress clean verify 2>&1 | tee build-output.txt
+          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+        continue-on-error: true
+
+      # Analyze the build output when the build failed
+      - name: Analyze failure with jvm-ai-debug
+        id: analyze
+        if: steps.verify.outcome == 'failure'
+        run: |
+          if [ -f target/jvm-ai-debug.jar ]; then
+            java -jar target/jvm-ai-debug.jar analyze build-output.txt \
+              --provider mock --format json > analysis.json 2>/dev/null
+            echo "analysis_available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "analysis_available=false" >> "$GITHUB_OUTPUT"
+            echo "JAR not available — skipping analysis (likely a compilation failure)"
+            cat build-output.txt
+          fi
+        continue-on-error: true
+
+      # Post the analysis as a PR comment (only on pull_request events)
+      - name: Post analysis as PR comment
+        if: >
+          steps.verify.outcome == 'failure' &&
+          steps.analyze.outputs.analysis_available == 'true' &&
+          github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            let analysis;
+            try {
+              analysis = JSON.parse(fs.readFileSync('analysis.json', 'utf8'));
+            } catch (e) {
+              core.warning('Could not parse analysis.json: ' + e.message);
+              return;
+            }
+
+            const fixes = (analysis.suggestedFixes || [])
+              .map((f, i) => `${i + 1}. ${f}`)
+              .join('\n');
+            const evidence = (analysis.evidence || [])
+              .map(e => `- ${e}`)
+              .join('\n');
+            const classes = (analysis.mentionedClasses || [])
+              .map(c => `\`${c}\``)
+              .join(', ');
+            const confidenceBadge = {
+              HIGH: '🔴 High',
+              MEDIUM: '🟡 Medium',
+              LOW: '⚪ Low'
+            }[analysis.confidence] || analysis.confidence;
+
+            const body = [
+              '## 🔍 AI JVM Debug Assistant',
+              '',
+              `> **${analysis.title || analysis.detectedIssue}** &nbsp;·&nbsp; Confidence: ${confidenceBadge}`,
+              '',
+              '### Likely Root Cause',
+              analysis.likelyRootCause || '_No root cause identified._',
+              '',
+              '### Evidence',
+              evidence || '_No evidence extracted._',
+              '',
+              '### Suggested Fixes',
+              fixes || '_No fixes suggested._',
+              ...(classes ? ['', '### Files / Classes Mentioned', classes] : []),
+              '',
+              '---',
+              `<sub>Analyzed by <strong>jvm-ai-debug</strong> · pattern: \`${analysis.detectedIssue}\` · provider: mock</sub>`
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
+
+            core.info('Posted analysis comment on PR #' + context.issue.number);
+
+      # Upload artifacts for debugging regardless of outcome
+      - name: Upload build output
+        if: steps.verify.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: |
+            build-output.txt
+            analysis.json
+          if-no-files-found: ignore
+
+      - name: Upload JAR artifact
+        if: steps.verify.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: jvm-ai-debug-jar
+          path: target/jvm-ai-debug.jar
+          if-no-files-found: warn
+
+      # Re-fail the job if the build actually failed (after posting the comment)
+      - name: Propagate build failure
+        if: steps.verify.outcome == 'failure'
+        run: exit 1
