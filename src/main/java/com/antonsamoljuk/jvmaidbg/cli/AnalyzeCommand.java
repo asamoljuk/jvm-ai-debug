@@ -23,7 +23,7 @@ public class AnalyzeCommand implements Callable<Integer> {
     private Path inputFile;
 
     @Option(names = {"--provider", "-p"},
-            description = "AI provider: openai | anthropic | mock (default: auto-detect from env)")
+            description = "AI provider: openai | anthropic | ollama | mock (default: auto-detect from env)")
     private String provider;
 
     @Option(names = {"--format", "-f"},

@@ -28,9 +28,10 @@ This tool closes the feedback loop between a failed build and a fix. It:
 - JUnit / TestNG test failure analysis
 - Hibernate / JPA mapping error detection
 - JVM memory and stack overflow analysis
-- AI-assisted root cause explanation via OpenAI or Claude
+- AI-assisted root cause explanation via OpenAI, Claude, or local Ollama
 - Provider abstraction — swap AI backends without changing the tool
 - Mock provider for zero-config local demo (no API key needed)
+- Ollama support for fully-local, zero-cost analysis (no data leaves your machine)
 - JSON output for CI pipeline integration
 - Verbose mode for debugging the analysis pipeline
 
@@ -68,7 +69,7 @@ jvm-ai-debug help
 
 | Option | Values | Default | Description |
 |--------|--------|---------|-------------|
-| `--provider`, `-p` | `openai`, `anthropic`, `mock` | auto-detect | AI provider |
+| `--provider`, `-p` | `openai`, `anthropic`, `ollama`, `mock` | auto-detect | AI provider |
 | `--format`, `-f` | `text`, `json` | `text` | Output format |
 | `--type`, `-t` | `stacktrace`, `build-log`, `test-failure`, `auto` | `auto` | Input type hint |
 | `--verbose`, `-v` | — | false | Show diagnostic details and AI prompt |
@@ -79,7 +80,9 @@ jvm-ai-debug help
 |----------|-------------|
 | `OPENAI_API_KEY` | OpenAI API key |
 | `ANTHROPIC_API_KEY` | Anthropic / Claude API key |
-| `JVM_AI_DEBUG_PROVIDER` | Default provider (`openai`, `anthropic`, `mock`) |
+| `JVM_AI_DEBUG_PROVIDER` | Default provider (`openai`, `anthropic`, `ollama`, `mock`) |
+| `OLLAMA_BASE_URL` | Ollama server URL (default: `http://localhost:11434`) |
+| `OLLAMA_MODEL` | Ollama model name (default: `llama3.1`) |
 
 ---
 
@@ -96,6 +99,15 @@ java -jar target/jvm-ai-debug.jar analyze build.log
 # Anthropic Claude provider
 export ANTHROPIC_API_KEY=sk-ant-...
 java -jar target/jvm-ai-debug.jar analyze failure.txt --provider anthropic
+
+# Local Ollama provider (no API key, no data leaves your machine)
+# Prerequisite: `ollama pull llama3.1` and have `ollama serve` running
+java -jar target/jvm-ai-debug.jar analyze stacktrace.txt --provider ollama
+
+# Ollama with a custom model and remote host
+export OLLAMA_BASE_URL=http://gpu-box:11434
+export OLLAMA_MODEL=codellama
+java -jar target/jvm-ai-debug.jar analyze stacktrace.txt --provider ollama
 
 # JSON output for CI integration
 java -jar target/jvm-ai-debug.jar analyze stacktrace.txt --format json
@@ -184,7 +196,8 @@ src/main/java/com/antonsamoljuk/jvmaidbg/
 │   ├── AiClient.java             # provider interface
 │   ├── MockAiClient.java         # deterministic offline responses
 │   ├── OpenAiClient.java         # OpenAI Chat Completions
-│   └── AnthropicAiClient.java    # Anthropic Messages API
+│   ├── AnthropicAiClient.java    # Anthropic Messages API
+│   └── OllamaAiClient.java       # Local Ollama (/api/chat)
 ├── output/
 │   └── OutputFormatter.java      # text and JSON rendering
 ├── config/
@@ -226,12 +239,9 @@ Sample inputs live in `src/test/resources/samples/`.
 
 ## Roadmap
 
-- **GitHub Actions integration** — post analysis as PR comment on test/build failures
 - **IntelliJ IDEA plugin** — right-click a stack trace → analyze inline
 - **Gradle/Maven plugin** — auto-analyze build failures as part of the lifecycle
 - **OpenTelemetry / JFR support** — analyze JVM flight recorder recordings
-- **Local LLM support via Ollama** — zero-cost, offline analysis
-- **PR comment bot** — comment structured analysis on failing CI runs
 - **Web UI dashboard** — team-level view of recurring failure patterns
 
 ---
