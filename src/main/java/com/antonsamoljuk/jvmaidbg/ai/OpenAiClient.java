@@ -110,8 +110,22 @@ public class OpenAiClient implements AiClient {
         int firstBrace = trimmed.indexOf('{');
         int lastBrace = trimmed.lastIndexOf('}');
         if (firstBrace >= 0 && lastBrace > firstBrace) {
-            return trimmed.substring(firstBrace, lastBrace + 1);
+            trimmed = trimmed.substring(firstBrace, lastBrace + 1);
         }
-        return trimmed;
+        return sanitizeLlmJson(trimmed);
+    }
+
+    // Repairs common LLM JSON artifacts that cause Jackson parse failures.
+    static String sanitizeLlmJson(String json) {
+        // Remove unquoted ellipsis placeholders that local models emit in arrays:
+        //   ["a", "b", ...]  →  ["a", "b"]
+        //   ["a", ..., "b"]  →  ["a", "b"]
+        //   [...]            →  []
+        String s = json.replaceAll(",\\s*\\.{2,}\\s*(?=[,\\]])", "");
+        s = s.replaceAll("(?<=\\[)\\s*\\.{2,}\\s*,\\s*", "");
+        s = s.replaceAll("\\[\\s*\\.{2,}\\s*\\]", "[]");
+        // Remove trailing commas before ] or } (another frequent local-model artifact)
+        s = s.replaceAll(",\\s*([}\\]])", "$1");
+        return s;
     }
 }

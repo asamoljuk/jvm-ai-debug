@@ -125,7 +125,7 @@ All environment variables are read at startup. They can be set in the shell, in 
 | `JVM_AI_DEBUG_PROVIDER` | `AppConfig` | Sets the default provider. Overridden by `--provider` flag. Values: `openai`, `anthropic`, `ollama`, `mock`. |
 | `OPENAI_API_KEY` | `AppConfig` | OpenAI API key. If set and no provider is specified, `openai` is auto-selected. Falls back to `mock` if the key is missing when `--provider openai` is used. |
 | `ANTHROPIC_API_KEY` | `AppConfig` | Anthropic API key. If set and `OPENAI_API_KEY` is absent and no provider is specified, `anthropic` is auto-selected. Falls back to `mock` if the key is missing when `--provider anthropic` is used. |
-| `OLLAMA_BASE_URL` | `AppConfig` | Ollama server base URL. Default: `http://localhost:11434`. Trailing slash is stripped automatically. |
+| `OLLAMA_BASE_URL` | `AppConfig` | Ollama server base URL. Default: `http://127.0.0.1:11434`. Trailing slash is stripped automatically. |
 | `OLLAMA_MODEL` | `AppConfig` | Ollama model name. Default: `llama3.1`. |
 
 ### Provider auto-detection order

@@ -13,11 +13,12 @@ public class PromptBuilder {
               "detectedIssue": "<CATEGORY_NAME>",
               "title": "<short title>",
               "likelyRootCause": "<detailed explanation of the root cause>",
-              "evidence": ["<evidence point 1>", "<evidence point 2>", "..."],
-              "suggestedFixes": ["<fix 1>", "<fix 2>", "..."],
+              "evidence": ["<evidence point 1>", "<evidence point 2>"],
+              "suggestedFixes": ["<fix 1>", "<fix 2>"],
               "confidence": "HIGH|MEDIUM|LOW",
               "mentionedClasses": ["<ClassName1>", "<ClassName2>"]
-            }""";
+            }
+            All array values must be quoted strings. Do not use ellipsis (...) or any placeholder tokens.""";
 
     public AnalysisRequest build(DetectedIssue detectedIssue, String rawContent) {
         String prompt = buildPrompt(detectedIssue, rawContent);

@@ -81,7 +81,7 @@ jvm-ai-debug help
 | `OPENAI_API_KEY` | OpenAI API key |
 | `ANTHROPIC_API_KEY` | Anthropic / Claude API key |
 | `JVM_AI_DEBUG_PROVIDER` | Default provider (`openai`, `anthropic`, `ollama`, `mock`) |
-| `OLLAMA_BASE_URL` | Ollama server URL (default: `http://localhost:11434`) |
+| `OLLAMA_BASE_URL` | Ollama server URL (default: `http://127.0.0.1:11434`) |
 | `OLLAMA_MODEL` | Ollama model name (default: `llama3.1`) |
 
 ---

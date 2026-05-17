@@ -1,6 +1,8 @@
 package com.antonsamoljuk.jvmaidbg.cli;
 
 import com.antonsamoljuk.jvmaidbg.ai.AiClient;
+import com.antonsamoljuk.jvmaidbg.ai.OllamaAiClient;
+import com.antonsamoljuk.jvmaidbg.ai.OllamaLauncher;
 import com.antonsamoljuk.jvmaidbg.analysis.AnalysisService;
 import com.antonsamoljuk.jvmaidbg.config.AppConfig;
 import com.antonsamoljuk.jvmaidbg.model.OutputFormat;
@@ -55,7 +57,14 @@ public class AnalyzeCommand implements Callable<Integer> {
         }
 
         try {
-            AnalysisService.AnalysisResult result = service.analyze(inputFile);
+            if (aiClient instanceof OllamaAiClient ollamaClient) {
+                OllamaLauncher.ensureRunning(ollamaClient.getBaseUrl());
+            }
+
+            AnalysisService.AnalysisResult result;
+            try (Spinner spinner = new Spinner("Analyzing with " + aiClient.getProviderName())) {
+                result = service.analyze(inputFile);
+            }
 
             if (verbose) {
                 System.err.println("[verbose] Detected category: " + result.detectedIssue().getCategory());

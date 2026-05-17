@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit;
 
 public class OllamaAiClient implements AiClient {
 
-    public static final String DEFAULT_BASE_URL = "http://localhost:11434";
+    public static final String DEFAULT_BASE_URL = "http://127.0.0.1:11434";
     public static final String DEFAULT_MODEL = "llama3.1";
     private static final String CHAT_PATH = "/api/chat";
     private static final MediaType JSON_MEDIA_TYPE = MediaType.get("application/json; charset=utf-8");

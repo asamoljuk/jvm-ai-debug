@@ -154,7 +154,7 @@ Calls a locally running [Ollama](https://ollama.com) server. No data leaves your
 **Configuration:**
 
 ```bash
-# Use defaults (http://localhost:11434, model llama3.1)
+# Use defaults (http://127.0.0.1:11434, model llama3.1)
 jvm-ai-debug analyze stacktrace.txt --provider ollama
 
 # Custom model
@@ -169,7 +169,7 @@ jvm-ai-debug analyze stacktrace.txt --provider ollama
 
 | Setting | Default | Environment variable |
 |---------|---------|---------------------|
-| Base URL | `http://localhost:11434` | `OLLAMA_BASE_URL` |
+| Base URL | `http://127.0.0.1:11434` | `OLLAMA_BASE_URL` |
 | Model | `llama3.1` | `OLLAMA_MODEL` |
 | Endpoint | `<base_url>/api/chat` | — |
 
