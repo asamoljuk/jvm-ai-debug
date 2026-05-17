@@ -1,5 +1,0 @@
-com\antonsamoljuk\jvmaidbg\ai\MockAiClientTest.class
-com\antonsamoljuk\jvmaidbg\analysis\IssueDetectorTest.class
-com\antonsamoljuk\jvmaidbg\output\OutputFormatterTest.class
-com\antonsamoljuk\jvmaidbg\analysis\PromptBuilderTest.class
-com\antonsamoljuk\jvmaidbg\parser\LogParserTest.class
