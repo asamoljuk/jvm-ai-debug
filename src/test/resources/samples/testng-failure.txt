@@ -1,0 +1,24 @@
+===============================================
+Running com.example.OrderServiceTest
+
+FAILED: shouldCalculateTotalWithTax
+java.lang.AssertionError: expected [110.0] but found [100.0]
+	at org.testng.Assert.fail(Assert.java:99)
+	at org.testng.Assert.failNotEquals(Assert.java:1037)
+	at org.testng.Assert.assertEqualsImpl(Assert.java:140)
+	at org.testng.Assert.assertEquals(Assert.java:122)
+	at org.testng.Assert.assertEquals(Assert.java:818)
+	at org.testng.Assert.assertEquals(Assert.java:828)
+	at com.example.OrderServiceTest.shouldCalculateTotalWithTax(OrderServiceTest.java:42)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at org.testng.internal.invokers.MethodInvocationHelper.invokeMethod(MethodInvocationHelper.java:139)
+
+===============================================
+OrderServiceTest
+Tests run: 4, Failures: 1, Skips: 0
+===============================================
+
+===============================================
+Default Suite
+Total tests run: 4, Failures: 1, Skips: 0
+===============================================

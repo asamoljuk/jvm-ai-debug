@@ -61,7 +61,7 @@ public class MockAiClient implements AiClient {
     private AnalysisResponse nullPointerResponse(List<String> classes) {
         return new AnalysisResponse(
                 IssueCategory.NULL_POINTER_EXCEPTION.name(),
-                "NullPointerException â€” null reference dereference",
+                "NullPointerException — null reference dereference",
                 "An object reference is null at the point of use. This typically occurs when a field or variable " +
                         "was never initialized, a method returned null unexpectedly, or optional chaining was skipped. " +
                         "In Spring applications this often means a @Autowired field was not injected (e.g. object created with new instead of Spring).",
@@ -71,9 +71,9 @@ public class MockAiClient implements AiClient {
                         "Possible missing initialization or incorrect Spring bean wiring"
                 ),
                 List.of(
-                        "Check the stack frame immediately before the NPE â€” identify which reference is null",
+                        "Check the stack frame immediately before the NPE — identify which reference is null",
                         "Add null guards: Objects.requireNonNull() or Optional<T> wrapping",
-                        "Ensure Spring-managed beans are not instantiated with new â€” use @Autowired or constructor injection",
+                        "Ensure Spring-managed beans are not instantiated with new — use @Autowired or constructor injection",
                         "Enable Java 14+ helpful NPE messages: -XX:+ShowCodeDetailsInExceptionMessages",
                         "Validate method return values before chaining calls"
                 ),
@@ -85,7 +85,7 @@ public class MockAiClient implements AiClient {
     private AnalysisResponse classNotFoundResponse(List<String> classes) {
         return new AnalysisResponse(
                 IssueCategory.CLASS_NOT_FOUND.name(),
-                "ClassNotFoundException â€” class missing from classpath",
+                "ClassNotFoundException — class missing from classpath",
                 "The JVM cannot find the requested class at runtime. This usually means a dependency is missing " +
                         "from pom.xml/build.gradle, the JAR was not packaged correctly, or there is a version conflict " +
                         "causing the wrong version to be loaded.",
@@ -97,9 +97,9 @@ public class MockAiClient implements AiClient {
                 List.of(
                         "Add the missing dependency to pom.xml or build.gradle",
                         "Run 'mvn dependency:tree' to find version conflicts",
-                        "Check dependency scope â€” 'provided' dependencies are not packaged into the fat JAR",
+                        "Check dependency scope — 'provided' dependencies are not packaged into the fat JAR",
                         "Ensure the uber-JAR is built correctly and includes all transitive dependencies",
-                        "Verify the class name and package â€” check for typos or moved packages"
+                        "Verify the class name and package — check for typos or moved packages"
                 ),
                 "HIGH",
                 classes
@@ -109,20 +109,20 @@ public class MockAiClient implements AiClient {
     private AnalysisResponse noClassDefFoundResponse(List<String> classes) {
         return new AnalysisResponse(
                 IssueCategory.NO_CLASS_DEF_FOUND.name(),
-                "NoClassDefFoundError â€” class present at compile time but missing at runtime",
+                "NoClassDefFoundError — class present at compile time but missing at runtime",
                 "The class was available during compilation but cannot be found by the JVM at runtime. " +
                         "This differs from ClassNotFoundException in that the class existed when the code was compiled. " +
                         "Common causes: dependency not included in the runtime classpath, class loading isolation issues " +
                         "in application servers, or a failed static initializer in the target class.",
                 List.of(
-                        "NoClassDefFoundError thrown â€” class was resolvable at compile time",
+                        "NoClassDefFoundError thrown — class was resolvable at compile time",
                         "Runtime classpath differs from compile-time classpath",
                         "Possible static initializer failure causing subsequent load attempts to fail"
                 ),
                 List.of(
                         "Ensure runtime dependencies are not marked as 'provided' when they should be bundled",
                         "Check application server classloader hierarchy for isolation issues",
-                        "Look for ExceptionInInitializerError earlier in the log â€” a static block may have failed",
+                        "Look for ExceptionInInitializerError earlier in the log — a static block may have failed",
                         "Run 'mvn dependency:resolve' to confirm all runtime dependencies are present",
                         "Inspect the fat JAR contents: 'jar tf app.jar | grep ClassName'"
                 ),
@@ -144,7 +144,7 @@ public class MockAiClient implements AiClient {
                         "Maven lifecycle execution halted before completion"
                 ),
                 List.of(
-                        "Read all [ERROR] lines carefully â€” they identify the exact failing module and line",
+                        "Read all [ERROR] lines carefully — they identify the exact failing module and line",
                         "Run 'mvn clean compile -e' for full stack traces from plugin exceptions",
                         "Run 'mvn dependency:resolve' to check for missing or conflicting dependencies",
                         "Use 'mvn -pl <module> install -am' to build only the failing module",
@@ -191,7 +191,7 @@ public class MockAiClient implements AiClient {
                         "Test execution completed but assertions failed"
                 ),
                 List.of(
-                        "Read the assertion error message â€” it shows expected vs actual values",
+                        "Read the assertion error message — it shows expected vs actual values",
                         "Check @BeforeEach and @AfterEach methods for state leaking between tests",
                         "Ensure mocks are reset/re-initialized between tests",
                         "Use @TestMethodOrder to isolate ordering dependencies",
@@ -277,16 +277,16 @@ public class MockAiClient implements AiClient {
                 : String.join(", ", exceptions);
         return new AnalysisResponse(
                 IssueCategory.UNKNOWN.name(),
-                "Unknown JVM issue â€” generic diagnostic",
+                "Unknown JVM issue — generic diagnostic",
                 "The issue could not be automatically categorized. The log contains: " + exceptionsStr + ". " +
                         "Manual inspection of the full stack trace and log context is recommended. " +
-                        "Look for the first exception in the chain â€” it is usually the true root cause.",
+                        "Look for the first exception in the chain — it is usually the true root cause.",
                 List.of(
                         "Issue category could not be determined from the log content",
                         "Exceptions found: " + exceptionsStr
                 ),
                 List.of(
-                        "Read the first exception at the top of the stack trace â€” it is the root cause",
+                        "Read the first exception at the top of the stack trace — it is the root cause",
                         "Search each exception name in the project issue tracker",
                         "Enable DEBUG logging for the relevant packages",
                         "Reproduce the issue in isolation with a minimal test case",

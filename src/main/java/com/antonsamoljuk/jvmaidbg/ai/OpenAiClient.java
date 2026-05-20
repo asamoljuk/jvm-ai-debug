@@ -9,13 +9,11 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import okhttp3.*;
 
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 
 public class OpenAiClient implements AiClient {
 
     private static final String API_URL = "https://api.openai.com/v1/chat/completions";
     private static final String DEFAULT_MODEL = "gpt-4o-mini";
-    private static final MediaType JSON_MEDIA_TYPE = MediaType.get("application/json; charset=utf-8");
 
     private final String apiKey;
     private final String model;
@@ -29,11 +27,7 @@ public class OpenAiClient implements AiClient {
     public OpenAiClient(String apiKey, String model) {
         this.apiKey = apiKey;
         this.model = model;
-        this.httpClient = new OkHttpClient.Builder()
-                .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(60, TimeUnit.SECONDS)
-                .writeTimeout(30, TimeUnit.SECONDS)
-                .build();
+        this.httpClient = AiClientDefaults.cloudHttpClient();
         this.objectMapper = new ObjectMapper();
     }
 
@@ -45,7 +39,7 @@ public class OpenAiClient implements AiClient {
                     .url(API_URL)
                     .header("Authorization", "Bearer " + apiKey)
                     .header("Content-Type", "application/json")
-                    .post(RequestBody.create(requestBody, JSON_MEDIA_TYPE))
+                    .post(RequestBody.create(requestBody, AiClientDefaults.JSON_MEDIA_TYPE))
                     .build();
 
             try (Response response = httpClient.newCall(httpRequest).execute()) {
@@ -75,7 +69,7 @@ public class OpenAiClient implements AiClient {
         ArrayNode messages = root.putArray("messages");
         ObjectNode systemMsg = messages.addObject();
         systemMsg.put("role", "system");
-        systemMsg.put("content", "You are an expert Java/JVM debugging assistant. Respond only with valid JSON, no markdown code blocks.");
+        systemMsg.put("content", AiClientDefaults.SYSTEM_PROMPT);
 
         ObjectNode userMsg = messages.addObject();
         userMsg.put("role", "user");
@@ -115,17 +109,12 @@ public class OpenAiClient implements AiClient {
         return sanitizeLlmJson(trimmed);
     }
 
-    // Repairs common LLM JSON artifacts that cause Jackson parse failures.
+    // Strips unquoted ... and trailing commas — artifacts local models emit that Jackson rejects.
     static String sanitizeLlmJson(String json) {
-        // Remove unquoted ellipsis placeholders that local models emit in arrays:
-        //   ["a", "b", ...]  →  ["a", "b"]
-        //   ["a", ..., "b"]  →  ["a", "b"]
-        //   [...]            →  []
-        String s = json.replaceAll(",\\s*\\.{2,}\\s*(?=[,\\]])", "");
-        s = s.replaceAll("(?<=\\[)\\s*\\.{2,}\\s*,\\s*", "");
-        s = s.replaceAll("\\[\\s*\\.{2,}\\s*\\]", "[]");
-        // Remove trailing commas before ] or } (another frequent local-model artifact)
-        s = s.replaceAll(",\\s*([}\\]])", "$1");
+        String s = json.replaceAll(",\\s*\\.{2,}\\s*(?=[,\\]])", ""); // ["a", ...] → ["a"]
+        s = s.replaceAll("(?<=\\[)\\s*\\.{2,}\\s*,\\s*", "");         // [..., "a"] → ["a"]
+        s = s.replaceAll("\\[\\s*\\.{2,}\\s*\\]", "[]");              // [...]      → []
+        s = s.replaceAll(",\\s*([}\\]])", "$1");                       // {"k":"v",} → {"k":"v"}
         return s;
     }
 }

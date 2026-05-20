@@ -19,8 +19,12 @@ public class AnalysisService {
     private final AiClient aiClient;
 
     public AnalysisService(AiClient aiClient) {
+        this(aiClient, CustomRules.empty());
+    }
+
+    public AnalysisService(AiClient aiClient, CustomRules customRules) {
         this.logParser = new LogParser();
-        this.issueDetector = new IssueDetector();
+        this.issueDetector = new IssueDetector(customRules);
         this.promptBuilder = new PromptBuilder();
         this.aiClient = aiClient;
     }

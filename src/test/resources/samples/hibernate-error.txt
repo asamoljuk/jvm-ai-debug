@@ -1,0 +1,14 @@
+2026-05-12 09:14:22.301 ERROR 18342 --- [main] o.s.boot.SpringApplication : Application run failed
+
+org.hibernate.MappingException: Could not determine type for: com.example.domain.Address, at table: customer, for columns: [org.hibernate.mapping.Column(address)]
+	at org.hibernate.mapping.SimpleValue.getType(SimpleValue.java:480)
+	at org.hibernate.mapping.SimpleValue.isValid(SimpleValue.java:457)
+	at org.hibernate.mapping.Property.isValid(Property.java:227)
+	at org.hibernate.mapping.PersistentClass.validate(PersistentClass.java:624)
+	at org.hibernate.mapping.RootClass.validate(RootClass.java:267)
+	at org.hibernate.boot.internal.MetadataImpl.validate(MetadataImpl.java:354)
+	at org.hibernate.boot.internal.SessionFactoryBuilderImpl.build(SessionFactoryBuilderImpl.java:457)
+	at org.springframework.orm.jpa.vendor.SpringHibernateJpaPersistenceProvider.createContainerEntityManagerFactory(SpringHibernateJpaPersistenceProvider.java:64)
+Caused by: jakarta.persistence.PersistenceException: [PersistenceUnit: default] Unable to build Hibernate SessionFactory; nested exception is org.hibernate.MappingException: Could not determine type for: com.example.domain.Address
+	at org.springframework.orm.jpa.vendor.AbstractJpaVendorAdapter.postProcessEntityManagerFactory(AbstractJpaVendorAdapter.java:67)
+	... 42 more

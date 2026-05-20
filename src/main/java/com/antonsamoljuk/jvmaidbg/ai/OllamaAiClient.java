@@ -9,14 +9,12 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import okhttp3.*;
 
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 
 public class OllamaAiClient implements AiClient {
 
     public static final String DEFAULT_BASE_URL = "http://127.0.0.1:11434";
     public static final String DEFAULT_MODEL = "llama3.1";
     private static final String CHAT_PATH = "/api/chat";
-    private static final MediaType JSON_MEDIA_TYPE = MediaType.get("application/json; charset=utf-8");
 
     private final String baseUrl;
     private final String model;
@@ -30,12 +28,7 @@ public class OllamaAiClient implements AiClient {
     public OllamaAiClient(String baseUrl, String model) {
         this.baseUrl = stripTrailingSlash(baseUrl == null || baseUrl.isBlank() ? DEFAULT_BASE_URL : baseUrl);
         this.model = (model == null || model.isBlank()) ? DEFAULT_MODEL : model;
-        // Local models can be slow — generous read timeout
-        this.httpClient = new OkHttpClient.Builder()
-                .connectTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(5, TimeUnit.MINUTES)
-                .writeTimeout(30, TimeUnit.SECONDS)
-                .build();
+        this.httpClient = AiClientDefaults.localHttpClient();
         this.objectMapper = new ObjectMapper();
     }
 
@@ -46,7 +39,7 @@ public class OllamaAiClient implements AiClient {
             Request httpRequest = new Request.Builder()
                     .url(baseUrl + CHAT_PATH)
                     .header("Content-Type", "application/json")
-                    .post(RequestBody.create(requestBody, JSON_MEDIA_TYPE))
+                    .post(RequestBody.create(requestBody, AiClientDefaults.JSON_MEDIA_TYPE))
                     .build();
 
             try (Response response = httpClient.newCall(httpRequest).execute()) {
@@ -86,7 +79,7 @@ public class OllamaAiClient implements AiClient {
         ArrayNode messages = root.putArray("messages");
         ObjectNode systemMsg = messages.addObject();
         systemMsg.put("role", "system");
-        systemMsg.put("content", "You are an expert Java/JVM debugging assistant. Respond only with valid JSON, no markdown code blocks.");
+        systemMsg.put("content", AiClientDefaults.SYSTEM_PROMPT);
 
         ObjectNode userMsg = messages.addObject();
         userMsg.put("role", "user");

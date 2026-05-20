@@ -9,14 +9,12 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import okhttp3.*;
 
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 
 public class AnthropicAiClient implements AiClient {
 
     private static final String API_URL = "https://api.anthropic.com/v1/messages";
     private static final String DEFAULT_MODEL = "claude-sonnet-4-6";
     private static final String API_VERSION = "2023-06-01";
-    private static final MediaType JSON_MEDIA_TYPE = MediaType.get("application/json; charset=utf-8");
 
     private final String apiKey;
     private final String model;
@@ -30,11 +28,7 @@ public class AnthropicAiClient implements AiClient {
     public AnthropicAiClient(String apiKey, String model) {
         this.apiKey = apiKey;
         this.model = model;
-        this.httpClient = new OkHttpClient.Builder()
-                .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(60, TimeUnit.SECONDS)
-                .writeTimeout(30, TimeUnit.SECONDS)
-                .build();
+        this.httpClient = AiClientDefaults.cloudHttpClient();
         this.objectMapper = new ObjectMapper();
     }
 
@@ -47,7 +41,7 @@ public class AnthropicAiClient implements AiClient {
                     .header("x-api-key", apiKey)
                     .header("anthropic-version", API_VERSION)
                     .header("Content-Type", "application/json")
-                    .post(RequestBody.create(requestBody, JSON_MEDIA_TYPE))
+                    .post(RequestBody.create(requestBody, AiClientDefaults.JSON_MEDIA_TYPE))
                     .build();
 
             try (Response response = httpClient.newCall(httpRequest).execute()) {
@@ -73,9 +67,8 @@ public class AnthropicAiClient implements AiClient {
         root.put("model", model);
         root.put("max_tokens", 1500);
 
-        ObjectNode systemNode = root.putObject("system");
-        // Anthropic uses top-level system field (string)
-        root.put("system", "You are an expert Java/JVM debugging assistant. Respond only with valid JSON, no markdown code blocks.");
+        // Anthropic uses a top-level "system" string field, not a message role.
+        root.put("system", AiClientDefaults.SYSTEM_PROMPT);
 
         ArrayNode messages = root.putArray("messages");
         ObjectNode userMsg = messages.addObject();

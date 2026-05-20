@@ -62,6 +62,12 @@ public class PromptBuilder {
 
     private String truncate(String text, int max) {
         if (text == null) return "";
-        return text.length() <= max ? text : text.substring(0, max) + "\n... [truncated]";
+        if (text.length() <= max) return text;
+        int dropped = text.length() - max;
+        int percentDropped = (int) Math.round(100.0 * dropped / text.length());
+        System.err.println("Warning: log excerpt truncated to " + max + " chars for the AI prompt. "
+                + "Dropped " + dropped + " chars (" + percentDropped + "% of input). "
+                + "The AI may miss context that appears later in the file.");
+        return text.substring(0, max) + "\n... [truncated]";
     }
 }

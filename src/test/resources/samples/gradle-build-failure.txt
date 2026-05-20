@@ -1,0 +1,27 @@
+> Task :compileJava FAILED
+
+/home/runner/work/myapp/src/main/java/com/example/Greeter.java:14: error: cannot find symbol
+        return new Strng("Hello, " + name);
+                   ^
+  symbol:   class Strng
+  location: class Greeter
+/home/runner/work/myapp/src/main/java/com/example/Greeter.java:18: error: ';' expected
+        System.out.println(message)
+                                   ^
+2 errors
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':compileJava'.
+> Compilation failed; see the compiler output below.
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+
+* Get more help at https://help.gradle.org
+
+BUILD FAILED in 7s
+1 actionable task: 1 executed

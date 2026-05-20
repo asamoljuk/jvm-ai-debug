@@ -35,6 +35,9 @@ public class AppConfig {
         // Auto-detect based on available keys (Ollama is local — must be opted into explicitly)
         if (System.getenv(ENV_OPENAI_API_KEY) != null) return "openai";
         if (System.getenv(ENV_ANTHROPIC_API_KEY) != null) return "anthropic";
+        System.err.println("Warning: no provider specified and no API key found in environment. "
+                + "Using mock provider — output is deterministic placeholder text, not real AI analysis. "
+                + "Set OPENAI_API_KEY, ANTHROPIC_API_KEY, or pass --provider ollama to enable real analysis.");
         return "mock";
     }
 

@@ -65,6 +65,52 @@ class IssueDetectorTest {
     }
 
     @Test
+    void detectsGradleBuildFailure() throws Exception {
+        String content = loadSample("gradle-build-failure.txt");
+        ExtractedEvidence evidence = parser.parse(content);
+        DetectedIssue issue = detector.detect(evidence, content);
+
+        assertEquals(IssueCategory.GRADLE_BUILD_FAILURE, issue.getCategory());
+    }
+
+    @Test
+    void detectsTestNGFailure() throws Exception {
+        String content = loadSample("testng-failure.txt");
+        ExtractedEvidence evidence = parser.parse(content);
+        DetectedIssue issue = detector.detect(evidence, content);
+
+        assertEquals(IssueCategory.TESTNG_TEST_FAILURE, issue.getCategory());
+    }
+
+    @Test
+    void detectsHibernateError() throws Exception {
+        String content = loadSample("hibernate-error.txt");
+        ExtractedEvidence evidence = parser.parse(content);
+        DetectedIssue issue = detector.detect(evidence, content);
+
+        assertEquals(IssueCategory.HIBERNATE_MAPPING_ERROR, issue.getCategory());
+    }
+
+    @Test
+    void detectsStackOverflow() throws Exception {
+        String content = loadSample("stack-overflow.txt");
+        ExtractedEvidence evidence = parser.parse(content);
+        DetectedIssue issue = detector.detect(evidence, content);
+
+        assertEquals(IssueCategory.JVM_MEMORY_ERROR, issue.getCategory());
+    }
+
+    @Test
+    void detectsNoClassDefFound() throws Exception {
+        String content = loadSample("no-class-def-found.txt");
+        ExtractedEvidence evidence = parser.parse(content);
+        DetectedIssue issue = detector.detect(evidence, content);
+
+        // Outer error wins over the caused-by ClassNotFoundException
+        assertEquals(IssueCategory.NO_CLASS_DEF_FOUND, issue.getCategory());
+    }
+
+    @Test
     void detectsClassNotFoundException() {
         String content = "java.lang.ClassNotFoundException: com.example.MissingClass\n" +
                 "Caused by: java.lang.ClassNotFoundException: com.example.MissingClass\n" +

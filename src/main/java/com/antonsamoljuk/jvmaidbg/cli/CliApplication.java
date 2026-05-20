@@ -7,7 +7,7 @@ import picocli.CommandLine.Command;
         name = "jvm-ai-debug",
         description = "AI-powered JVM debug assistant — analyzes stack traces, build logs, and test failures.",
         mixinStandardHelpOptions = true,
-        version = "AI JVM Debug Assistant v" + VersionCommand.VERSION,
+        versionProvider = VersionProvider.class,
         subcommands = {
                 AnalyzeCommand.class,
                 VersionCommand.class,

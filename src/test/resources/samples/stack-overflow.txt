@@ -1,0 +1,12 @@
+Exception in thread "main" java.lang.StackOverflowError
+	at com.example.recursion.NodeRenderer.render(NodeRenderer.java:42)
+	at com.example.recursion.NodeRenderer.render(NodeRenderer.java:48)
+	at com.example.recursion.NodeRenderer.render(NodeRenderer.java:48)
+	at com.example.recursion.NodeRenderer.render(NodeRenderer.java:48)
+	at com.example.recursion.NodeRenderer.render(NodeRenderer.java:48)
+	at com.example.recursion.NodeRenderer.render(NodeRenderer.java:48)
+	at com.example.recursion.NodeRenderer.render(NodeRenderer.java:48)
+	at com.example.recursion.NodeRenderer.render(NodeRenderer.java:48)
+	at com.example.recursion.NodeRenderer.render(NodeRenderer.java:48)
+	at com.example.recursion.NodeRenderer.render(NodeRenderer.java:48)
+	... [1024 more frames repeating]
