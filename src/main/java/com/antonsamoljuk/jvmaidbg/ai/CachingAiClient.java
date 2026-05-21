@@ -42,7 +42,7 @@ public class CachingAiClient implements AiClient {
                 System.err.println("Using cached analysis (" + key.substring(0, 12) + "). Pass --no-cache to force re-analysis.");
                 return cached;
             } catch (IOException e) {
-                // Cache file corrupt — fall through to fresh analysis and overwrite.
+                System.err.println("Warning: cache file corrupt, re-analyzing: " + cacheFile);
             }
         }
 

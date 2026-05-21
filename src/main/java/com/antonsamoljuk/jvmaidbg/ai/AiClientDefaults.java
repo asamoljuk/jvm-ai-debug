@@ -16,6 +16,9 @@ public final class AiClientDefaults {
 
     public static final MediaType JSON_MEDIA_TYPE = MediaType.get("application/json; charset=utf-8");
 
+    /** Anthropic requires an explicit API version header. Update here when adopting new features. */
+    public static final String ANTHROPIC_API_VERSION = "2023-06-01";
+
     private AiClientDefaults() {}
 
     /** Cloud APIs (OpenAI, Anthropic) — fast networks, capped response time. */

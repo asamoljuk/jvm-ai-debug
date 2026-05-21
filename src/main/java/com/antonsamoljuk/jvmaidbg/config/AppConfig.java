@@ -8,11 +8,13 @@ import com.antonsamoljuk.jvmaidbg.ai.OpenAiClient;
 
 public class AppConfig {
 
-    public static final String ENV_OPENAI_API_KEY = "OPENAI_API_KEY";
+    public static final String ENV_OPENAI_API_KEY    = "OPENAI_API_KEY";
+    public static final String ENV_OPENAI_MODEL      = "OPENAI_MODEL";
     public static final String ENV_ANTHROPIC_API_KEY = "ANTHROPIC_API_KEY";
-    public static final String ENV_PROVIDER = "JVM_AI_DEBUG_PROVIDER";
-    public static final String ENV_OLLAMA_BASE_URL = "OLLAMA_BASE_URL";
-    public static final String ENV_OLLAMA_MODEL = "OLLAMA_MODEL";
+    public static final String ENV_ANTHROPIC_MODEL   = "ANTHROPIC_MODEL";
+    public static final String ENV_PROVIDER          = "JVM_AI_DEBUG_PROVIDER";
+    public static final String ENV_OLLAMA_BASE_URL   = "OLLAMA_BASE_URL";
+    public static final String ENV_OLLAMA_MODEL      = "OLLAMA_MODEL";
 
     public AiClient createAiClient(String providerOverride) {
         String provider = resolveProvider(providerOverride);
@@ -47,7 +49,8 @@ public class AppConfig {
             System.err.println("OPENAI_API_KEY is not set. Falling back to mock provider.");
             return new MockAiClient();
         }
-        return new OpenAiClient(key);
+        String model = System.getenv(ENV_OPENAI_MODEL);
+        return (model != null && !model.isBlank()) ? new OpenAiClient(key, model) : new OpenAiClient(key);
     }
 
     private AiClient createAnthropicClient() {
@@ -56,7 +59,8 @@ public class AppConfig {
             System.err.println("ANTHROPIC_API_KEY is not set. Falling back to mock provider.");
             return new MockAiClient();
         }
-        return new AnthropicAiClient(key);
+        String model = System.getenv(ENV_ANTHROPIC_MODEL);
+        return (model != null && !model.isBlank()) ? new AnthropicAiClient(key, model) : new AnthropicAiClient(key);
     }
 
     private AiClient createOllamaClient() {

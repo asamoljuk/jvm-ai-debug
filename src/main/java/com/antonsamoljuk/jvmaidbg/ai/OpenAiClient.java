@@ -111,7 +111,8 @@ public class OpenAiClient implements AiClient {
 
     // Strips unquoted ... and trailing commas — artifacts local models emit that Jackson rejects.
     static String sanitizeLlmJson(String json) {
-        String s = json.replaceAll(",\\s*\\.{2,}\\s*(?=[,\\]])", ""); // ["a", ...] → ["a"]
+        String s = json.replace("…", "..."); // normalize Unicode ellipsis → ASCII before regex
+        s = s.replaceAll(",\\s*\\.{2,}\\s*(?=[,\\]])", ""); // ["a", ...] → ["a"]
         s = s.replaceAll("(?<=\\[)\\s*\\.{2,}\\s*,\\s*", "");         // [..., "a"] → ["a"]
         s = s.replaceAll("\\[\\s*\\.{2,}\\s*\\]", "[]");              // [...]      → []
         s = s.replaceAll(",\\s*([}\\]])", "$1");                       // {"k":"v",} → {"k":"v"}

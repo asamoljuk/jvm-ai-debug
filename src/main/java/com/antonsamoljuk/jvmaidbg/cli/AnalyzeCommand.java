@@ -7,6 +7,7 @@ import com.antonsamoljuk.jvmaidbg.ai.OllamaLauncher;
 import com.antonsamoljuk.jvmaidbg.analysis.AnalysisService;
 import com.antonsamoljuk.jvmaidbg.analysis.CustomRules;
 import com.antonsamoljuk.jvmaidbg.config.AppConfig;
+import com.antonsamoljuk.jvmaidbg.model.InputType;
 import com.antonsamoljuk.jvmaidbg.model.OutputFormat;
 import com.antonsamoljuk.jvmaidbg.output.OutputFormatter;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -18,6 +19,8 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -50,7 +53,9 @@ public class AnalyzeCommand implements Callable<Integer> {
     private String format;
 
     @Option(names = {"--type", "-t"},
-            description = "Input type hint: stacktrace | build-log | test-failure | auto (default: auto)",
+            description = "Input type hint: stacktrace | build-log | test-failure | auto (default: auto). "
+                    + "Biases detection: build-log skips test-framework checks; "
+                    + "test-failure skips build-tool checks; stacktrace skips both.",
             defaultValue = "auto")
     private String type;
 
@@ -83,10 +88,13 @@ public class AnalyzeCommand implements Callable<Integer> {
         AnalysisService service = new AnalysisService(aiClient, customRules);
         OutputFormatter formatter = new OutputFormatter();
 
+        InputType inputType = parseInputType(type);
+
         if (verbose) {
             System.err.println("[verbose] Provider: " + aiClient.getProviderName());
             System.err.println("[verbose] Files: " + files.size());
             System.err.println("[verbose] Output format: " + outputFormat);
+            System.err.println("[verbose] Input type: " + inputType);
             System.err.println("[verbose] Cache: " + (noCache ? "disabled" : "enabled"));
             System.err.println("[verbose] Custom rules: " + customRules.size());
         }
@@ -102,7 +110,7 @@ public class AnalyzeCommand implements Callable<Integer> {
 
         List<FileOutcome> outcomes = new ArrayList<>();
         for (Path file : files) {
-            outcomes.add(analyzeOne(file, service, formatter, outputFormat, files.size() > 1));
+            outcomes.add(analyzeOne(file, service, formatter, outputFormat, inputType, files.size() > 1));
         }
 
         if (outputFormat == OutputFormat.JSON && files.size() > 1) {
@@ -119,16 +127,27 @@ public class AnalyzeCommand implements Callable<Integer> {
         return (int) Math.min(highCount, 125);
     }
 
+    private static final Path STDIN_SENTINEL = Path.of("-");
+
     private FileOutcome analyzeOne(Path file, AnalysisService service, OutputFormatter formatter,
-                                   OutputFormat outputFormat, boolean batch) {
+                                   OutputFormat outputFormat, InputType inputType, boolean batch) {
+        boolean isStdin = STDIN_SENTINEL.equals(file);
+        String label = isStdin ? "<stdin>" : file.getFileName().toString();
         if (batch && outputFormat == OutputFormat.TEXT) {
             System.out.println();
-            System.out.println("=== " + file + " ===");
+            System.out.println("=== " + label + " ===");
         }
         try {
             AnalysisService.AnalysisResult result;
-            try (Spinner spinner = new Spinner("Analyzing " + file.getFileName())) {
-                result = service.analyze(file);
+            try (Spinner spinner = new Spinner("Analyzing " + label)) {
+                if (isStdin) {
+                    try (InputStream in = System.in) {
+                        String content = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+                        result = service.analyzeContent(content, inputType);
+                    }
+                } else {
+                    result = service.analyze(file, inputType);
+                }
             }
 
             if (verbose) {
@@ -143,7 +162,7 @@ public class AnalyzeCommand implements Callable<Integer> {
             }
             return new FileOutcome(file, result, null);
         } catch (Exception e) {
-            System.err.println("Error analyzing " + file + ": " + e.getMessage());
+            System.err.println("Error analyzing " + label + ": " + e.getMessage());
             if (verbose) e.printStackTrace(System.err);
             return new FileOutcome(file, null, e.getMessage());
         }
@@ -216,6 +235,16 @@ public class AnalyzeCommand implements Callable<Integer> {
         return switch (fmt.toLowerCase()) {
             case "json" -> OutputFormat.JSON;
             default -> OutputFormat.TEXT;
+        };
+    }
+
+    private InputType parseInputType(String t) {
+        if (t == null) return InputType.AUTO;
+        return switch (t.toLowerCase()) {
+            case "stacktrace"    -> InputType.STACKTRACE;
+            case "build-log"     -> InputType.BUILD_LOG;
+            case "test-failure"  -> InputType.TEST_FAILURE;
+            default              -> InputType.AUTO;
         };
     }
 

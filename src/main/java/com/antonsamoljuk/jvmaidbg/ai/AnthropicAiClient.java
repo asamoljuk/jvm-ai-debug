@@ -14,7 +14,6 @@ public class AnthropicAiClient implements AiClient {
 
     private static final String API_URL = "https://api.anthropic.com/v1/messages";
     private static final String DEFAULT_MODEL = "claude-sonnet-4-6";
-    private static final String API_VERSION = "2023-06-01";
 
     private final String apiKey;
     private final String model;
@@ -39,7 +38,7 @@ public class AnthropicAiClient implements AiClient {
             Request httpRequest = new Request.Builder()
                     .url(API_URL)
                     .header("x-api-key", apiKey)
-                    .header("anthropic-version", API_VERSION)
+                    .header("anthropic-version", AiClientDefaults.ANTHROPIC_API_VERSION)
                     .header("Content-Type", "application/json")
                     .post(RequestBody.create(requestBody, AiClientDefaults.JSON_MEDIA_TYPE))
                     .build();

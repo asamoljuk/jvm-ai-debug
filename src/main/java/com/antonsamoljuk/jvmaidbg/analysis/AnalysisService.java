@@ -5,6 +5,7 @@ import com.antonsamoljuk.jvmaidbg.model.AnalysisRequest;
 import com.antonsamoljuk.jvmaidbg.model.AnalysisResponse;
 import com.antonsamoljuk.jvmaidbg.model.DetectedIssue;
 import com.antonsamoljuk.jvmaidbg.model.ExtractedEvidence;
+import com.antonsamoljuk.jvmaidbg.model.InputType;
 import com.antonsamoljuk.jvmaidbg.parser.LogParser;
 
 import java.io.IOException;
@@ -30,17 +31,24 @@ public class AnalysisService {
     }
 
     public AnalysisResult analyze(Path inputFile) throws IOException {
+        return analyze(inputFile, InputType.AUTO);
+    }
+
+    public AnalysisResult analyze(Path inputFile, InputType inputType) throws IOException {
         if (!Files.exists(inputFile)) {
             throw new IOException("File not found: " + inputFile);
         }
-
         String content = Files.readString(inputFile);
-        return analyzeContent(content);
+        return analyzeContent(content, inputType);
     }
 
     public AnalysisResult analyzeContent(String content) {
+        return analyzeContent(content, InputType.AUTO);
+    }
+
+    public AnalysisResult analyzeContent(String content, InputType inputType) {
         ExtractedEvidence evidence = logParser.parse(content);
-        DetectedIssue detectedIssue = issueDetector.detect(evidence, content);
+        DetectedIssue detectedIssue = issueDetector.detect(evidence, content, inputType);
         AnalysisRequest request = promptBuilder.build(detectedIssue, content);
         AnalysisResponse response = aiClient.analyze(request);
 
