@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import okhttp3.*;
 
 import java.io.IOException;
+import java.util.Optional;
 
 public class AnthropicAiClient implements AiClient {
 
@@ -19,6 +20,7 @@ public class AnthropicAiClient implements AiClient {
     private final String model;
     private final OkHttpClient httpClient;
     private final ObjectMapper objectMapper;
+    private volatile TokenUsage lastUsage;
 
     public AnthropicAiClient(String apiKey) {
         this(apiKey, DEFAULT_MODEL);
@@ -61,6 +63,11 @@ public class AnthropicAiClient implements AiClient {
         return "anthropic";
     }
 
+    @Override
+    public Optional<TokenUsage> getLastUsage() {
+        return Optional.ofNullable(lastUsage);
+    }
+
     private String buildRequestBody(String prompt) throws IOException {
         ObjectNode root = objectMapper.createObjectNode();
         root.put("model", model);
@@ -80,6 +87,13 @@ public class AnthropicAiClient implements AiClient {
     private AnalysisResponse parseResponse(String responseBody) throws IOException {
         JsonNode root = objectMapper.readTree(responseBody);
         String content = root.path("content").get(0).path("text").asText();
+        // Capture token usage if present (Anthropic: usage.input_tokens / output_tokens)
+        JsonNode usage = root.path("usage");
+        if (!usage.isMissingNode()) {
+            int in  = usage.path("input_tokens").asInt(0);
+            int out = usage.path("output_tokens").asInt(0);
+            lastUsage = new TokenUsage(model, in, out, Pricing.estimateUsd(model, in, out));
+        }
         String json = OpenAiClient.extractJson(content);
         return objectMapper.readValue(json, AnalysisResponse.class);
     }

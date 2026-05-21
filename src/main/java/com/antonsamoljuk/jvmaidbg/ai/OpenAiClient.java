@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import okhttp3.*;
 
 import java.io.IOException;
+import java.util.Optional;
 
 public class OpenAiClient implements AiClient {
 
@@ -19,6 +20,7 @@ public class OpenAiClient implements AiClient {
     private final String model;
     private final OkHttpClient httpClient;
     private final ObjectMapper objectMapper;
+    private volatile TokenUsage lastUsage;
 
     public OpenAiClient(String apiKey) {
         this(apiKey, DEFAULT_MODEL);
@@ -60,6 +62,11 @@ public class OpenAiClient implements AiClient {
         return "openai";
     }
 
+    @Override
+    public Optional<TokenUsage> getLastUsage() {
+        return Optional.ofNullable(lastUsage);
+    }
+
     private String buildRequestBody(String prompt) throws IOException {
         ObjectNode root = objectMapper.createObjectNode();
         root.put("model", model);
@@ -81,6 +88,13 @@ public class OpenAiClient implements AiClient {
     private AnalysisResponse parseResponse(String responseBody) throws IOException {
         JsonNode root = objectMapper.readTree(responseBody);
         String content = root.path("choices").get(0).path("message").path("content").asText();
+        // Capture token usage if present (OpenAI: usage.prompt_tokens / completion_tokens)
+        JsonNode usage = root.path("usage");
+        if (!usage.isMissingNode()) {
+            int in  = usage.path("prompt_tokens").asInt(0);
+            int out = usage.path("completion_tokens").asInt(0);
+            lastUsage = new TokenUsage(model, in, out, Pricing.estimateUsd(model, in, out));
+        }
         return parseAnalysisJson(content);
     }
 

@@ -4,9 +4,14 @@ import com.antonsamoljuk.jvmaidbg.ai.AiClient;
 import com.antonsamoljuk.jvmaidbg.ai.CachingAiClient;
 import com.antonsamoljuk.jvmaidbg.ai.OllamaAiClient;
 import com.antonsamoljuk.jvmaidbg.ai.OllamaLauncher;
+import com.antonsamoljuk.jvmaidbg.ai.TokenUsage;
 import com.antonsamoljuk.jvmaidbg.analysis.AnalysisService;
+import com.antonsamoljuk.jvmaidbg.analysis.BatchCorrelator;
 import com.antonsamoljuk.jvmaidbg.analysis.CustomRules;
+import com.antonsamoljuk.jvmaidbg.analysis.PromptBuilder;
 import com.antonsamoljuk.jvmaidbg.config.AppConfig;
+import com.antonsamoljuk.jvmaidbg.config.AppSettings;
+import com.antonsamoljuk.jvmaidbg.config.ConfigLoader;
 import com.antonsamoljuk.jvmaidbg.model.InputType;
 import com.antonsamoljuk.jvmaidbg.model.OutputFormat;
 import com.antonsamoljuk.jvmaidbg.output.OutputFormatter;
@@ -71,6 +76,11 @@ public class AnalyzeCommand implements Callable<Integer> {
             description = "Path to a custom rules JSON file (default: ~/.jvm-ai-debug/rules.json if it exists)")
     private Path rulesFile;
 
+    @Option(names = {"--watch", "-w"},
+            description = "Tail the given file and analyze each new stack trace as it appears. "
+                    + "Requires exactly one positional file. Implies --no-cache. Ctrl-C to exit.")
+    private boolean watch;
+
     @Override
     public Integer call() {
         OutputFormat outputFormat = parseFormat(format);
@@ -81,11 +91,25 @@ public class AnalyzeCommand implements Callable<Integer> {
             return 2;
         }
 
+        if (watch && files.size() != 1) {
+            System.err.println("Error: --watch requires exactly one file (got " + files.size() + ").");
+            return 2;
+        }
+
+        AppSettings settings = ConfigLoader.load();
         AppConfig config = new AppConfig();
-        AiClient rawClient = config.createAiClient(provider);
-        AiClient aiClient = noCache ? rawClient : new CachingAiClient(rawClient);
-        CustomRules customRules = CustomRules.load(rulesFile != null ? rulesFile : CustomRules.DEFAULT_PATH);
-        AnalysisService service = new AnalysisService(aiClient, customRules);
+        AiClient rawClient = config.createAiClient(provider, settings);
+
+        // Cache: CLI --no-cache or --watch wins; otherwise config file's cacheEnabled wins; default true.
+        boolean cacheOn = !noCache && !watch && (settings.cacheEnabled == null || settings.cacheEnabled);
+        AiClient aiClient = cacheOn ? new CachingAiClient(rawClient) : rawClient;
+
+        Path effectiveRulesFile = rulesFile != null ? rulesFile
+                : (settings.rulesFile != null ? Path.of(settings.rulesFile) : CustomRules.DEFAULT_PATH);
+        CustomRules customRules = CustomRules.load(effectiveRulesFile);
+
+        int maxChars = settings.maxPromptChars != null ? settings.maxPromptChars : PromptBuilder.DEFAULT_MAX_PROMPT_CHARS;
+        AnalysisService service = new AnalysisService(aiClient, customRules, maxChars);
         OutputFormatter formatter = new OutputFormatter();
 
         InputType inputType = parseInputType(type);
@@ -95,8 +119,11 @@ public class AnalyzeCommand implements Callable<Integer> {
             System.err.println("[verbose] Files: " + files.size());
             System.err.println("[verbose] Output format: " + outputFormat);
             System.err.println("[verbose] Input type: " + inputType);
-            System.err.println("[verbose] Cache: " + (noCache ? "disabled" : "enabled"));
+            System.err.println("[verbose] Cache: " + (cacheOn ? "enabled" : "disabled"));
             System.err.println("[verbose] Custom rules: " + customRules.size());
+            System.err.println("[verbose] Max prompt chars: " + maxChars);
+            List<Path> sources = ConfigLoader.loadedSources();
+            System.err.println("[verbose] Config sources: " + (sources.isEmpty() ? "(none, using defaults)" : sources));
         }
 
         if (rawClient instanceof OllamaAiClient ollamaClient) {
@@ -106,6 +133,10 @@ public class AnalyzeCommand implements Callable<Integer> {
                 System.err.println("Error: " + e.getMessage());
                 return 1;
             }
+        }
+
+        if (watch) {
+            return runWatch(files.get(0), service, formatter, outputFormat, inputType);
         }
 
         List<FileOutcome> outcomes = new ArrayList<>();
@@ -128,6 +159,48 @@ public class AnalyzeCommand implements Callable<Integer> {
     }
 
     private static final Path STDIN_SENTINEL = Path.of("-");
+    private static final long WATCH_DEBOUNCE_MS = 2_000;
+
+    private Integer runWatch(Path file, AnalysisService service, OutputFormatter formatter,
+                             OutputFormat outputFormat, InputType inputType) {
+        if (!Files.isRegularFile(file)) {
+            System.err.println("Error: --watch target is not a regular file: " + file);
+            return 2;
+        }
+        System.err.println("Watching " + file + " — Ctrl-C to exit. Triggering analysis on new stack traces.");
+
+        Thread main = Thread.currentThread();
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            main.interrupt();
+            System.err.println();
+            System.err.println("Watch stopped.");
+        }));
+
+        LogTailer tailer = new LogTailer(file, WATCH_DEBOUNCE_MS, chunk -> {
+            String timestamp = java.time.LocalTime.now().withNano(0).toString();
+            System.out.println();
+            System.out.println("=== " + timestamp + " — new stack trace detected ===");
+            try {
+                AnalysisService.AnalysisResult result = service.analyzeContent(chunk, inputType);
+                System.out.println(formatter.format(result.response(), outputFormat));
+                if (result.usage() != null) {
+                    System.err.println("Tokens: " + result.usage().formatShort() + " [" + result.usage().model() + "]");
+                }
+            } catch (Exception e) {
+                System.err.println("Error analyzing chunk: " + e.getMessage());
+            }
+        });
+
+        try {
+            tailer.tail();
+            return 0;
+        } catch (InterruptedException e) {
+            return 0;
+        } catch (IOException e) {
+            System.err.println("Error tailing " + file + ": " + e.getMessage());
+            return 1;
+        }
+    }
 
     private FileOutcome analyzeOne(Path file, AnalysisService service, OutputFormatter formatter,
                                    OutputFormat outputFormat, InputType inputType, boolean batch) {
@@ -153,6 +226,11 @@ public class AnalyzeCommand implements Callable<Integer> {
             if (verbose) {
                 System.err.println("[verbose] " + file + " → " + result.detectedIssue().getCategory()
                         + " (" + result.detectedIssue().getConfidence() + ")");
+            }
+
+            if (result.usage() != null) {
+                System.err.println("Tokens: " + result.usage().formatShort()
+                        + " [" + result.usage().model() + "]");
             }
 
             if (outputFormat == OutputFormat.JSON && !batch) {
@@ -189,7 +267,8 @@ public class AnalyzeCommand implements Callable<Integer> {
 
     private void emitJsonArray(List<FileOutcome> outcomes) {
         ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
-        ArrayNode arr = mapper.createArrayNode();
+
+        ArrayNode results = mapper.createArrayNode();
         for (FileOutcome o : outcomes) {
             ObjectNode node = mapper.createObjectNode();
             node.put("file", o.file.toString());
@@ -197,11 +276,34 @@ public class AnalyzeCommand implements Callable<Integer> {
                 node.put("error", o.error);
             } else {
                 node.set("analysis", mapper.valueToTree(o.result.response()));
+                if (o.result.usage() != null) {
+                    node.set("usage", mapper.valueToTree(o.result.usage()));
+                }
             }
-            arr.add(node);
+            results.add(node);
         }
+
+        // Wrap results in a top-level object with summary + correlations for direct CI consumption.
+        ObjectNode root = mapper.createObjectNode();
+        ObjectNode summary = root.putObject("summary");
+        summary.put("total", outcomes.size());
+        summary.put("high", (int) outcomes.stream().filter(o -> "HIGH".equalsIgnoreCase(o.confidence)).count());
+        summary.put("errors", (int) outcomes.stream().filter(o -> o.error != null).count());
+
+        ArrayNode correlations = root.putArray("correlations");
+        for (BatchCorrelator.Cluster c : correlate(outcomes)) {
+            ObjectNode cn = correlations.addObject();
+            cn.put("category", c.category().name());
+            if (c.topException() != null) cn.put("topException", c.topException());
+            cn.put("fileCount", c.fileCount());
+            ArrayNode files = cn.putArray("files");
+            c.files().forEach(files::add);
+        }
+
+        root.set("results", results);
+
         try {
-            System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(arr));
+            System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root));
         } catch (IOException e) {
             System.err.println("Failed to serialize batch JSON: " + e.getMessage());
         }
@@ -228,6 +330,38 @@ public class AnalyzeCommand implements Callable<Integer> {
         long errors = outcomes.stream().filter(o -> o.error != null).count();
         System.out.println();
         System.out.println(outcomes.size() + " file(s) analyzed — " + high + " HIGH, " + errors + " error(s).");
+
+        TokenUsage total = outcomes.stream()
+                .filter(o -> o.result != null && o.result.usage() != null)
+                .map(o -> o.result.usage())
+                .reduce(TokenUsage.zero(), TokenUsage::plus);
+        if (total.inputTokens() > 0 || total.outputTokens() > 0) {
+            System.out.println("Total tokens: " + total.formatShort() + " [" + total.model() + "]");
+        }
+
+        List<BatchCorrelator.Cluster> clusters = correlate(outcomes);
+        if (!clusters.isEmpty()) {
+            System.out.println();
+            System.out.println("Correlations:");
+            for (BatchCorrelator.Cluster c : clusters) {
+                System.out.println("  " + c.fileCount() + " of " + outcomes.size()
+                        + " files show " + c.signature() + " — likely a single root cause.");
+            }
+        }
+    }
+
+    private List<BatchCorrelator.Cluster> correlate(List<FileOutcome> outcomes) {
+        List<BatchCorrelator.Entry> entries = new ArrayList<>();
+        for (FileOutcome o : outcomes) {
+            if (o.result == null) continue;
+            List<String> exceptions = o.result.detectedIssue().getEvidence().getExceptionNames();
+            String top = (exceptions != null && !exceptions.isEmpty()) ? exceptions.get(0) : null;
+            entries.add(new BatchCorrelator.Entry(
+                    o.file.getFileName().toString(),
+                    o.result.detectedIssue().getCategory(),
+                    top));
+        }
+        return BatchCorrelator.correlate(entries);
     }
 
     private OutputFormat parseFormat(String fmt) {

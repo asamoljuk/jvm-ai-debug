@@ -1,6 +1,7 @@
 package com.antonsamoljuk.jvmaidbg.analysis;
 
 import com.antonsamoljuk.jvmaidbg.ai.AiClient;
+import com.antonsamoljuk.jvmaidbg.ai.TokenUsage;
 import com.antonsamoljuk.jvmaidbg.model.AnalysisRequest;
 import com.antonsamoljuk.jvmaidbg.model.AnalysisResponse;
 import com.antonsamoljuk.jvmaidbg.model.DetectedIssue;
@@ -11,6 +12,7 @@ import com.antonsamoljuk.jvmaidbg.parser.LogParser;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Optional;
 
 public class AnalysisService {
 
@@ -20,13 +22,17 @@ public class AnalysisService {
     private final AiClient aiClient;
 
     public AnalysisService(AiClient aiClient) {
-        this(aiClient, CustomRules.empty());
+        this(aiClient, CustomRules.empty(), PromptBuilder.DEFAULT_MAX_PROMPT_CHARS);
     }
 
     public AnalysisService(AiClient aiClient, CustomRules customRules) {
+        this(aiClient, customRules, PromptBuilder.DEFAULT_MAX_PROMPT_CHARS);
+    }
+
+    public AnalysisService(AiClient aiClient, CustomRules customRules, int maxPromptChars) {
         this.logParser = new LogParser();
         this.issueDetector = new IssueDetector(customRules);
-        this.promptBuilder = new PromptBuilder();
+        this.promptBuilder = new PromptBuilder(maxPromptChars);
         this.aiClient = aiClient;
     }
 
@@ -60,13 +66,15 @@ public class AnalysisService {
             response.setTitle(detectedIssue.getTitle());
         }
 
-        return new AnalysisResult(detectedIssue, request, response, aiClient.getProviderName());
+        Optional<TokenUsage> usage = aiClient.getLastUsage();
+        return new AnalysisResult(detectedIssue, request, response, aiClient.getProviderName(), usage.orElse(null));
     }
 
     public record AnalysisResult(
             DetectedIssue detectedIssue,
             AnalysisRequest request,
             AnalysisResponse response,
-            String providerName
+            String providerName,
+            TokenUsage usage
     ) {}
 }

@@ -8,6 +8,18 @@ import java.util.List;
 
 public class PromptBuilder {
 
+    public static final int DEFAULT_MAX_PROMPT_CHARS = 2500;
+
+    private final int maxPromptChars;
+
+    public PromptBuilder() {
+        this(DEFAULT_MAX_PROMPT_CHARS);
+    }
+
+    public PromptBuilder(int maxPromptChars) {
+        this.maxPromptChars = maxPromptChars > 0 ? maxPromptChars : DEFAULT_MAX_PROMPT_CHARS;
+    }
+
     private static final String OUTPUT_SCHEMA = """
             {
               "detectedIssue": "<CATEGORY_NAME>",
@@ -43,7 +55,7 @@ public class PromptBuilder {
         appendList(sb, "Test framework indicators", ev.getTestFrameworkIndicators());
 
         sb.append("\n## Raw Log Excerpt\n```\n");
-        sb.append(truncate(rawContent, 2500));
+        sb.append(truncate(rawContent, maxPromptChars));
         sb.append("\n```\n\n");
 
         sb.append("## Instructions\n");

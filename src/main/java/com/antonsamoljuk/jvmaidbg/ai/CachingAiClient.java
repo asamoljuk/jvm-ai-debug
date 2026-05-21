@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Optional;
 
 /**
  * Decorator that caches AI responses on disk keyed by SHA-256(rawContent + provider).
@@ -21,6 +22,7 @@ public class CachingAiClient implements AiClient {
     private final AiClient delegate;
     private final Path cacheDir;
     private final ObjectMapper mapper = new ObjectMapper();
+    private volatile boolean lastCallWasCacheHit;
 
     public CachingAiClient(AiClient delegate) {
         this(delegate, defaultCacheDir());
@@ -40,12 +42,14 @@ public class CachingAiClient implements AiClient {
             try {
                 AnalysisResponse cached = mapper.readValue(cacheFile.toFile(), AnalysisResponse.class);
                 System.err.println("Using cached analysis (" + key.substring(0, 12) + "). Pass --no-cache to force re-analysis.");
+                lastCallWasCacheHit = true;
                 return cached;
             } catch (IOException e) {
                 System.err.println("Warning: cache file corrupt, re-analyzing: " + cacheFile);
             }
         }
 
+        lastCallWasCacheHit = false;
         AnalysisResponse response = delegate.analyze(request);
         try {
             Files.createDirectories(cacheDir);
@@ -59,6 +63,12 @@ public class CachingAiClient implements AiClient {
     @Override
     public String getProviderName() {
         return delegate.getProviderName();
+    }
+
+    @Override
+    public Optional<TokenUsage> getLastUsage() {
+        // A cache hit means no API call was made — no tokens consumed.
+        return lastCallWasCacheHit ? Optional.empty() : delegate.getLastUsage();
     }
 
     static String cacheKey(String content, String providerName) {
